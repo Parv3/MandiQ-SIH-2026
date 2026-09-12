@@ -25,9 +25,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include Parv's routes
+# Include Parv's routes (both direct and /api prefixed for proxy compatibility)
 app.include_router(parv_routes.router, tags=["Parv - Backend Support"])
+app.include_router(parv_routes.router, prefix="/api", tags=["Parv - Backend Support"])
+
+# Include Voice routes
 app.include_router(voice_routes.router, prefix="/api/voice", tags=["Voice & Indic AI (Sarvam & Bhashini)"])
+app.include_router(voice_routes.router, prefix="/voice", tags=["Voice & Indic AI (Sarvam & Bhashini)"])
 
 @app.get("/")
 async def root():

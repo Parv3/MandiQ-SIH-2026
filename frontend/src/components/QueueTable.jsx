@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { useWebSocket } from "../services/websocket.jsx";
-import { updateQueueStatus, haltQueueBooking } from "../services/api.js";
+import { updateQueueStatus, haltQueueBooking, haltAllQueueBookings } from "../services/api.js";
 
 const QueueTable = () => {
   const { queueData, setQueueData } = useWebSocket();
@@ -8,6 +8,7 @@ const QueueTable = () => {
   const [sortOrder, setSortOrder] = useState("asc"); // "asc" | "desc"
   const [statusFilter, setStatusFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [isHaltingAll, setIsHaltingAll] = useState(false);
 
   const handleSort = (field) => {
     if (sortField === field) {
@@ -44,6 +45,38 @@ const QueueTable = () => {
     } catch (err) {
       console.error("Failed to halt booking", err);
       alert("Failed to halt booking.");
+    }
+  };
+
+  const haltAll = async () => {
+    const waitingCount = queueData ? queueData.filter(i => i.status === "waiting").length : 0;
+    if (waitingCount === 0) {
+      alert("There are no active waiting bookings to halt.");
+      return;
+    }
+
+    const confirmHalt = window.confirm(
+      `⚠️ EMERGENCY CONFIRMATION:\n\nAre you sure you want to HALT ALL ${waitingCount} active waiting bookings?\n\nThis will reschedule all waiting farmers to tomorrow and broadcast emergency SMS notifications.`
+    );
+    if (!confirmHalt) return;
+
+    setIsHaltingAll(true);
+    try {
+      await haltAllQueueBookings();
+      // Instantly update state
+      setQueueData((prev) =>
+        prev.map((item) =>
+          item.status === "waiting"
+            ? { ...item, status: "halted", slot_date: "2026-09-14" }
+            : item
+        )
+      );
+      alert(`🚨 Emergency Halt Executed: ${waitingCount} bookings halted and rescheduled to tomorrow.`);
+    } catch (err) {
+      console.error("Failed to halt all", err);
+      alert("Failed to execute emergency halt.");
+    } finally {
+      setIsHaltingAll(false);
     }
   };
 
@@ -151,6 +184,69 @@ const QueueTable = () => {
             <option value="halted" style={{ background: "#1a1f2c" }}>Halted</option>
             <option value="no_show" style={{ background: "#1a1f2c" }}>No-Show</option>
           </select>
+
+          <button
+            onClick={haltAll}
+            disabled={isHaltingAll || (queueData && queueData.filter(i => i.status === "waiting").length === 0)}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "0.4rem",
+              padding: "0.45rem 0.85rem",
+              background: queueData && queueData.filter(i => i.status === "waiting").length > 0
+                ? "linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)"
+                : "rgba(239, 68, 68, 0.2)",
+              border: "1px solid #ef4444",
+              borderRadius: "var(--radius-sm)",
+              color: "#fff",
+              fontSize: "0.8rem",
+              fontWeight: 600,
+              cursor: queueData && queueData.filter(i => i.status === "waiting").length > 0 ? "pointer" : "not-allowed",
+              boxShadow: queueData && queueData.filter(i => i.status === "waiting").length > 0 ? "0 2px 8px rgba(239, 68, 68, 0.4)" : "none",
+              opacity: isHaltingAll ? 0.7 : 1,
+              transition: "all 0.2s ease"
+            }}
+            title="Halt all active waiting bookings and reschedule them to tomorrow with SMS alerts"
+          >
+            {isHaltingAll ? "⏳ Halting..." : "🚨 Halt All"}
+          </button>
+        </div>
+      </div>
+
+      {/* Live Metrics Ribbon */}
+      <div style={{
+        display: "flex",
+        gap: "1.25rem",
+        flexWrap: "wrap",
+        alignItems: "center",
+        padding: "0.6rem 1.25rem",
+        background: "rgba(255, 255, 255, 0.02)",
+        borderBottom: "1px solid var(--border-subtle)",
+        fontSize: "0.82rem"
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+          <span style={{ color: "var(--text-muted)" }}>Total Bookings:</span>
+          <span style={{ fontWeight: 700, color: "var(--accent-blue)", fontSize: "0.95rem" }}>
+            {queueData ? queueData.length : 0}
+          </span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+          <span style={{ color: "var(--text-muted)" }}>Waiting:</span>
+          <span style={{ fontWeight: 700, color: "var(--accent-amber)", fontSize: "0.95rem" }}>
+            {queueData ? queueData.filter((i) => i.status === "waiting").length : 0}
+          </span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+          <span style={{ color: "var(--text-muted)" }}>Served:</span>
+          <span style={{ fontWeight: 700, color: "var(--accent-green)", fontSize: "0.95rem" }}>
+            {queueData ? queueData.filter((i) => i.status === "served").length : 0}
+          </span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+          <span style={{ color: "var(--text-muted)" }}>Halted:</span>
+          <span style={{ fontWeight: 700, color: "#f87171", fontSize: "0.95rem" }}>
+            {queueData ? queueData.filter((i) => i.status === "halted").length : 0}
+          </span>
         </div>
       </div>
 

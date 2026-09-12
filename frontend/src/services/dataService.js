@@ -1,4 +1,4 @@
-﻿// src/services/dataService.js
+// src/services/dataService.js
 // Universal Data Service: Uses backend API when available, and smoothly falls back
 // to an embedded in-memory/localStorage engine on GitHub Pages.
 
@@ -27,19 +27,15 @@ export const getStoredQueue = () => {
 export const saveStoredQueue = (data) => {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    // Immediately dispatch in-window custom event so all components update in real-time!
+    window.dispatchEvent(new CustomEvent("mandiq_queue_updated", { detail: data }));
   } catch (e) {
     console.warn("Could not save to localStorage", e);
   }
 };
 
 export const initQueueData = async () => {
-  // 1. Check localStorage first
-  const existing = getStoredQueue();
-  if (existing && existing.length > 0) {
-    return existing;
-  }
-
-  // 2. Attempt to fetch from backend
+  // 1. Attempt to fetch freshest live queue from backend first
   try {
     const res = await fetch("/api/queue");
     if (res.ok) {
@@ -50,7 +46,13 @@ export const initQueueData = async () => {
       }
     }
   } catch (e) {
-    // Expected when running purely on GitHub Pages
+    // Expected when running offline
+  }
+
+  // 2. Check localStorage next
+  const existing = getStoredQueue();
+  if (existing && existing.length > 0) {
+    return existing;
   }
 
   // 3. Load 100 mock customers from public/mock_customers_100.json
@@ -134,6 +136,47 @@ export const haltItem = async (token) => {
   return rescheduledInfo || { detail: "Booking halted" };
 };
 
+// Emergency Halt All Items
+export const haltAllItems = async () => {
+  // Try backend first
+  try {
+    const res = await fetch("/api/queue/halt-all", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" }
+    });
+    if (res.ok) {
+      const result = await res.json();
+      try {
+        const qRes = await fetch("/api/queue");
+        if (qRes.ok) {
+          const qData = await qRes.json();
+          if (qData && qData.items) saveStoredQueue(qData.items);
+        }
+      } catch (e) {}
+      return result;
+    }
+  } catch (e) {}
+
+  // Fallback to local state
+  const list = getStoredQueue() || [];
+  const nextDate = "2026-09-14";
+  let count = 0;
+  const updated = list.map((item) => {
+    if (item.status === "waiting") {
+      count++;
+      return {
+        ...item,
+        status: "halted",
+        slot_date: nextDate
+      };
+    }
+    return item;
+  });
+
+  saveStoredQueue(updated);
+  return { detail: `Halted ${count} bookings`, count };
+};
+
 // Create a new booking
 export const bookSlot = async ({ phone_number, name, crop, village }) => {
   // Try backend first
@@ -143,7 +186,20 @@ export const bookSlot = async ({ phone_number, name, crop, village }) => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ phone_number, name, crop, village })
     });
-    if (res.ok) return await res.json();
+    if (res.ok) {
+      const data = await res.json();
+      // Immediately refresh queue from backend so count updates live!
+      try {
+        const qRes = await fetch("/api/queue");
+        if (qRes.ok) {
+          const qData = await qRes.json();
+          if (qData && qData.items) {
+            saveStoredQueue(qData.items);
+          }
+        }
+      } catch (e) {}
+      return data;
+    }
     if (res.status === 400) {
       const errData = await res.json();
       throw { response: { status: 400, data: errData } };

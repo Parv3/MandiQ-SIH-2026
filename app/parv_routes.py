@@ -153,19 +153,31 @@ async def halt_booking(req: schemas.QueueUpdateReq, db: AsyncSession = Depends(g
     start_t = orig_slot.start_time
     end_t = orig_slot.end_time
     
-    # Create a new slot for next day
-    new_slot = models.Slot(
-        date=next_day,
-        start_time=start_t,
-        end_time=end_t,
-        capacity=orig_slot.capacity,
-        booked_count=1,
+    # Find or create slot for next day
+    slot_res = await db.execute(
+        select(models.Slot).where(
+            models.Slot.date == next_day,
+            models.Slot.start_time == start_t,
+            models.Slot.end_time == end_t
+        )
     )
-    db.add(new_slot)
-    await db.flush()
+    target_slot = slot_res.scalars().first()
+    if not target_slot:
+        target_slot = models.Slot(
+            date=next_day,
+            start_time=start_t,
+            end_time=end_t,
+            capacity=orig_slot.capacity,
+            booked_count=1,
+        )
+        db.add(target_slot)
+        await db.flush()
+    else:
+        target_slot.booked_count += 1
+        await db.flush()
     
     # Update booking
-    booking.slot_id = new_slot.id
+    booking.slot_id = target_slot.id
     booking.status = models.BookingStatus.HALTED.value
     
     # Create a notification (SMS placeholder)
@@ -181,6 +193,78 @@ async def halt_booking(req: schemas.QueueUpdateReq, db: AsyncSession = Depends(g
     queue_payload = await get_full_queue(db)
     await ws_manager.broadcast({"type": "queue_update", "data": jsonable_encoder(queue_payload)})
     return {"detail": "Booking halted", "new_date": str(next_day), "slot_time": f"{start_t.strftime('%H:%M')} - {end_t.strftime('%H:%M')}"}
+
+@router.post("/queue/halt-all")
+async def halt_all_bookings(db: AsyncSession = Depends(get_db)):
+    """
+    Emergency Halt All: Halt all currently WAITING bookings in the mandi,
+    reschedule them to the next day with matching time windows,
+    generate SMS notifications for all affected farmers, and broadcast the queue update.
+    """
+    from datetime import date, timedelta
+    today = date.today()
+    next_day = today + timedelta(days=1)
+    
+    # Find all WAITING bookings with slot eagerly loaded
+    result = await db.execute(
+        select(models.Booking)
+        .options(joinedload(models.Booking.slot))
+        .where(models.Booking.status == models.BookingStatus.WAITING.value)
+    )
+    waiting_bookings = result.scalars().all()
+    
+    halted_count = 0
+    for booking in waiting_bookings:
+        orig_slot = booking.slot
+        if not orig_slot:
+            continue
+        start_t = orig_slot.start_time
+        end_t = orig_slot.end_time
+        
+        # Check if slot already exists for next day
+        slot_res = await db.execute(
+            select(models.Slot).where(
+                models.Slot.date == next_day,
+                models.Slot.start_time == start_t,
+                models.Slot.end_time == end_t
+            )
+        )
+        target_slot = slot_res.scalars().first()
+        if not target_slot:
+            target_slot = models.Slot(
+                date=next_day,
+                start_time=start_t,
+                end_time=end_t,
+                capacity=orig_slot.capacity,
+                booked_count=1,
+            )
+            db.add(target_slot)
+            await db.flush()
+        else:
+            target_slot.booked_count += 1
+            await db.flush()
+        
+        booking.slot_id = target_slot.id
+        booking.status = models.BookingStatus.HALTED.value
+        
+        notif = models.Notification(
+            farmer_id=booking.farmer_id,
+            message=f"Due to mandi emergency, your booking has been halted and rescheduled to {next_day} {start_t.strftime('%H:%M')} - {end_t.strftime('%H:%M')}.",
+            status="queued",
+        )
+        db.add(notif)
+        halted_count += 1
+        
+    await db.commit()
+    
+    # Broadcast updated queue to WS clients
+    queue_payload = await get_full_queue(db)
+    await ws_manager.broadcast({"type": "queue_update", "data": jsonable_encoder(queue_payload)})
+    return {
+        "detail": f"Successfully halted and rescheduled {halted_count} bookings",
+        "halted_count": halted_count,
+        "new_date": str(next_day)
+    }
 
 @router.post("/queue/reschedule")
 async def reschedule_booking(req: schemas.QueueUpdateReq, db: AsyncSession = Depends(get_db)):

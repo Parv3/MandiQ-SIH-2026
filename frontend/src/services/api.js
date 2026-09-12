@@ -1,5 +1,4 @@
-// src/services/api.js
-import { initQueueData, updateItemStatus, haltItem, bookSlot, getStatusByPhone } from "./dataService.js";
+import { initQueueData, updateItemStatus, haltItem, haltAllItems, bookSlot, getStatusByPhone } from "./dataService.js";
 
 export const fetchQueue = async () => {
   const items = await initQueueData();
@@ -16,6 +15,10 @@ export const updateQueueStatus = async (token, status) => {
 
 export const haltQueueBooking = async (token) => {
   return await haltItem(token);
+};
+
+export const haltAllQueueBookings = async () => {
+  return await haltAllItems();
 };
 
 export const fetchFarmerStatus = async (phone) => {
