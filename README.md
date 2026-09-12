@@ -1,5 +1,13 @@
 ﻿# 🌾 MandiQ - Voice-First Smart Mandi Queue & Procurement Management System
-> **Smart India Hackathon (SIH 2026)** | **Team RootCause** | **Problem Statement:** AI & Voice-Enabled Transparent Agricultural Procurement
+> **Smart India Hackathon (SIH 2026)** | **Team RootCause** | **Track:** Agriculture, FoodTech & Rural Development
+
+---
+
+## 👥 Team RootCause (SIH 2026)
+- **Team Name:** Team RootCause
+- **Hackathon:** Smart India Hackathon 2026
+- **Project:** MandiQ — Voice-First Automated Mandi Queue & Procurement Integrity System
+- **Mission:** Bridging the digital divide for illiterate farmers to eliminate corruption, bribery, and middleman exploitation at agricultural mandis.
 
 ---
 
@@ -10,14 +18,41 @@ According to government survey data (Census & NSS 77th Round), **over 25% of agr
 
 ---
 
-## ⚡ Core Problem & How MandiQ Solves It
+## ⚡ Problem vs. Solution (Theory of Tables)
 
-| Traditional Procurement Pain Point | The Corruption & Exploitation | MandiQ Automated Solution |
+### 1. The Operational Challenges & Anti-Corruption Impact
+A concise overview of the bottlenecks in traditional mandis and how MandiQ resolves them:
+
+| Challenge / Vulnerability | Traditional Malpractice (Middlemen / Centers) | MandiQ Automated Solution |
 | :--- | :--- | :--- |
-| **Manual Token Assignment** | Procurement operators take bribes or favor middlemen to issue early queue slots. | **Algorithmic Fair-Share Slots**: Slots are generated automatically by non-overlapping scheduling logic. |
-| **Information Asymmetry** | Farmers wait days at the mandi without knowing when their crop will be weighed. | **Dial-in Status Check**: Farmers dial the toll-free IVR to hear their live queue position, token, and slot time. |
-| **Middleman Arbitrage** | Intermediaries exploit illiterate farmers by buying low and taking their mandi slots. | **Anti-Duplicate Guard**: Strictly one active token per verified mobile number. |
-| **Unilateral Delays & Cancellations** | Mandis halt operations without notice, leaving perishable crops rotting. | **Audited 1-Click Halt & Reschedule**: Mandi admin can halt a slot, automatically moving the farmer to the next business day with an SMS audit trail. |
+| **Token Assignment** | Arbitrary & bribe-driven; early slots sold to affluent middlemen. | **Algorithmic Fair-Share**: System auto-assigns sequential, non-overlapping 15-min slots without human intervention. |
+| **Information Gap** | Farmers wait days without knowing when weighing starts; prone to distress sales. | **On-Demand Voice Check**: Dialing IVR immediately announces token number, exact slot time, and live queue position. |
+| **Middleman Arbitrage** | Intermediaries hoard slots under fake identities to buy cheap from desperate farmers. | **Unique Phone Enforcement**: Database constraint restricts strictly one active booking per verified phone number. |
+| **Sudden Delays** | Unannounced halts force farmers to wait in lines; perishable crops decay. | **1-Click Halt & Reschedule**: Transparently moves farmers to the next day with automated SMS audit records. |
+
+---
+
+### 2. Database Schema (Theory of System Entities)
+MandiQ's relational database is structured to enforce transparency and non-repudiation:
+
+| Table Entity | Key Fields | System Purpose & Business Rule |
+| :--- | :--- | :--- |
+| `farmers` | `phone_number` (Unique, Indexed), `name`, `village`, `crop` | Farmer profile. Unique phone ensures identity verification without requiring smartphone logins. |
+| `slots` | `date`, `start_time`, `end_time`, `capacity`, `booked_count` | 15-minute procurement windows. Enforced with a `UniqueConstraint('date', 'start_time', 'end_time')` to prevent double-booking. |
+| `bookings` | `token_number` (Unique), `farmer_id`, `slot_id`, `status` | Links farmer to a slot. Status tracks lifecycle: `waiting` ➔ `served`, `halted`, or `no_show`. |
+| `notifications` | `farmer_id`, `message`, `status`, `created_at` | Audit trail for all rescheduled or halted bookings sent to the farmer's mobile via SMS. |
+
+---
+
+### 3. Demographic Feasibility & Delivery Channels
+Comparison showing why IVR voice telephony is the only viable channel for universal rural adoption:
+
+| Access Channel | Farmer Reach | Critical Barriers in Rural India |
+| :--- | :---: | :--- |
+| **Mobile Apps (Smartphone)** | **15% - 20%** | High smartphone cost, internet data plans, UI/UX literacy barriers. |
+| **SMS (Text)** | **35% - 40%** | Requires text literacy; prone to being misread or exploited by middlemen. |
+| **IVR Voice Telephony (MandiQ)** | **75% - 80%** | **Zero literacy barrier**; works on basic feature keypad phones in native dialects. |
+| **Physical Mandi Counter** | ~100% | High corruption risk; physical queuing enables extortion and bribery. |
 
 ---
 
@@ -25,7 +60,7 @@ According to government survey data (Census & NSS 77th Round), **over 25% of agr
 
 ### 1. 📞 Voice-First IVR Phone Simulator (Dial 1 / 2)
 - **Zero App Required**: Works on basic keypad phones (e.g. Nokia 3310) and smartphones alike.
-- **Multilingual Voice Prompts**: Available in Hindi (`hi-IN`) and English (`en-US`) with browser speech synthesis.
+- **Multilingual Voice Prompts**: Available in Hindi (`hi-IN`) and English (`en-US`) with speech synthesis.
 - **Press 1**: Book a procurement slot for Wheat, Sugarcane, or Paddy.
 - **Press 2**: Check live booking status, token number, and scheduled arrival time.
 - **Instant Confirmation**: Displays a simulated SMS receipt with token number and entry window.
@@ -39,7 +74,7 @@ According to government survey data (Census & NSS 77th Round), **over 25% of agr
 - **Status Lifecycle Control**:
   - `✅ Served`: Mark farmer transaction as completed.
   - `❌ No-Show`: Flag unattended slot allocations.
-  - `⏸ Halt`: Reschedules farmer to the next business day at the same time window, logging a placeholder SMS alert.
+  - `⏸ Halt`: Reschedules farmer to the next business day at the same time window, logging an SMS alert.
 
 ### 3. 🛡️ Robust Backend & Anti-Corruption Guard
 - **Concurrency & Transaction Safety**: SQLite/PostgreSQL with async SQLAlchemy and row-level locking.
@@ -151,5 +186,5 @@ npm run dev
 
 ---
 
-## 👥 Team RootCause (SIH 2026)
-Developed for **Smart India Hackathon 2026** by Team RootCause.
+## 👥 Submission Note
+Submitted for **Smart India Hackathon 2026** by **Team RootCause**.
