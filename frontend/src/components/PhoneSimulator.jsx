@@ -58,6 +58,7 @@ const PhoneSimulator = () => {
   const [voiceEngine, setVoiceEngine] = useState("sarvam"); // 'sarvam', 'bhashini', or 'browser'
   const [providers, setProviders] = useState(null);
   const [isListening, setIsListening] = useState(false);
+  const [customVoiceInput, setCustomVoiceInput] = useState("");
   const audioPlayerRef = useRef(null);
 
   // Phone State
@@ -242,26 +243,45 @@ const PhoneSimulator = () => {
       setIsListening(false);
       const transcript = event.results[0][0].transcript;
       setScreenLines(["Heard:", `"${transcript}"`, "Processing AI..."]);
-      
-      // Call backend Sarvam/Bhashini NLP processor
-      const targetLang = (lang === "hi" || lang === "bho") ? "hi-IN" : (lang === "pa" ? "pa-IN" : "en-IN");
-      const nlpResult = await processFarmerSpeech(null, transcript, targetLang);
-      if (nlpResult && nlpResult.extracted_crop) {
-        setScreenLines(["AI Detected:", nlpResult.extracted_crop, "Booking slot..."]);
-        submitBooking(nlpResult.extracted_crop);
-      } else {
-        setScreenLines(["Crop not recognized", "Please select key", "1:Wheat 2:Sugar 3:Paddy"]);
-        speak(t("invalidChoice"));
-      }
+      await handleVoiceText(transcript);
     };
 
     recognition.onerror = (err) => {
       setIsListening(false);
-      setScreenLines(["Voice Error", "Try keypad instead"]);
-      console.warn("Speech recognition error", err);
+      console.warn("Speech recognition error:", err.error, err);
+      if (err.error === "not-allowed" || err.error === "permission-denied") {
+        setScreenLines(["Mic Blocked 🔒", "Click lock in URL bar", "Allow Microphone"]);
+        alert("Microphone permission was blocked by your browser. Please click the lock 🔒 or site settings icon next to the URL in your address bar and set Microphone to 'Allow', then refresh.");
+      } else if (err.error === "no-speech") {
+        setScreenLines(["No speech heard", "Click mic & speak", "e.g. Gehu, Dhan"]);
+      } else if (err.error === "network") {
+        setScreenLines(["Network Error", "Use Quick Voice chips", "Below phone"]);
+      } else {
+        setScreenLines([`Mic: ${err.error}`, "Use Quick Voice chips", "Or dial keypad"]);
+      }
     };
 
-    recognition.start();
+    try {
+      recognition.start();
+    } catch (e) {
+      setIsListening(false);
+      console.warn("Recognition start error", e);
+      setScreenLines(["Mic Busy", "Try again in a sec"]);
+    }
+  };
+
+  const handleVoiceText = async (text) => {
+    stopSpeak();
+    setScreenLines(["Processing Voice:", `"${text.substring(0, 18)}..."`, "Detecting crop..."]);
+    const targetLang = (lang === "hi" || lang === "bho") ? "hi-IN" : (lang === "pa" ? "pa-IN" : "en-IN");
+    const nlpResult = await processFarmerSpeech(null, text, targetLang);
+    if (nlpResult && nlpResult.extracted_crop) {
+      setScreenLines(["AI Detected:", nlpResult.extracted_crop, "Booking slot..."]);
+      submitBooking(nlpResult.extracted_crop);
+    } else {
+      setScreenLines(["Crop not found", "Try: Gehu, Dhan", "Or press keypad"]);
+      speak(t("invalidChoice"));
+    }
   };
 
   const renderKey = (num, letters) => (
@@ -412,6 +432,83 @@ const PhoneSimulator = () => {
           >
             <span>{isListening ? "🎙️ Listening..." : "🎙️ Speak to Book (Voice AI)"}</span>
           </button>
+        </div>
+
+        {/* Quick Voice Simulation Chips & Input */}
+        <div style={{ marginTop: "1rem", display: "flex", flexDirection: "column", gap: "0.4rem", alignItems: "center" }}>
+          <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", fontWeight: "500" }}>
+            🌾 Quick Voice Test (Click to simulate speech):
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "0.35rem", justifyContent: "center", maxWidth: "280px" }}>
+            <button
+              onClick={() => handleVoiceText("Main Gehun bechna chahta hoon")}
+              style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: "12px", color: "var(--text-secondary)", fontSize: "0.72rem", padding: "0.25rem 0.55rem", cursor: "pointer" }}
+            >
+              "Gehun lana hai" (Hindi)
+            </button>
+            <button
+              onClick={() => handleVoiceText("Hamra gohun beche ke ba")}
+              style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: "12px", color: "var(--text-secondary)", fontSize: "0.72rem", padding: "0.25rem 0.55rem", cursor: "pointer" }}
+            >
+              "Gohun beche ke ba" (Bhojpuri)
+            </button>
+            <button
+              onClick={() => handleVoiceText("Main kanak le ke aana hai")}
+              style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: "12px", color: "var(--text-secondary)", fontSize: "0.72rem", padding: "0.25rem 0.55rem", cursor: "pointer" }}
+            >
+              "Kanak aana hai" (Punjabi)
+            </button>
+            <button
+              onClick={() => handleVoiceText("30 quintal Sarson lana hai")}
+              style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: "12px", color: "var(--text-secondary)", fontSize: "0.72rem", padding: "0.25rem 0.55rem", cursor: "pointer" }}
+            >
+              "Sarson lana hai"
+            </button>
+          </div>
+
+          <div style={{ marginTop: "0.4rem", display: "flex", gap: "0.35rem", width: "100%", maxWidth: "270px" }}>
+            <input
+              type="text"
+              placeholder="Or type phrase (e.g. Gehu, Dhan)..."
+              value={customVoiceInput}
+              onChange={(e) => setCustomVoiceInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && customVoiceInput.trim()) {
+                  handleVoiceText(customVoiceInput);
+                  setCustomVoiceInput("");
+                }
+              }}
+              style={{
+                flex: 1,
+                background: "rgba(0,0,0,0.4)",
+                border: "1px solid rgba(255,255,255,0.15)",
+                borderRadius: "6px",
+                padding: "0.3rem 0.5rem",
+                fontSize: "0.75rem",
+                color: "#fff"
+              }}
+            />
+            <button
+              onClick={() => {
+                if (customVoiceInput.trim()) {
+                  handleVoiceText(customVoiceInput);
+                  setCustomVoiceInput("");
+                }
+              }}
+              style={{
+                background: "var(--accent-green)",
+                color: "#000",
+                fontWeight: "600",
+                border: "none",
+                borderRadius: "6px",
+                padding: "0.3rem 0.6rem",
+                fontSize: "0.75rem",
+                cursor: "pointer"
+              }}
+            >
+              Say
+            </button>
+          </div>
         </div>
       </div>
     </div>
