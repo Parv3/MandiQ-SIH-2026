@@ -11,7 +11,8 @@
 
 ---
 
-## 🌐 Live Deployment Links
+## 🌐 Live Deployment & Demo Links
+- 🎥 **Video Demonstration (YouTube):** [https://youtu.be/1_8FGb6jPUo](https://youtu.be/1_8FGb6jPUo)
 - 🖥️ **Live Web Application (Vercel):** [https://frontend-omega-fawn-51.vercel.app/](https://frontend-omega-fawn-51.vercel.app/)
 - 🚀 **Live API & WebSocket Backend (Render):** [https://mandiq-sih-2026.onrender.com/](https://mandiq-sih-2026.onrender.com/)
 - 📖 **Interactive API Documentation (Swagger):** [https://mandiq-sih-2026.onrender.com/docs](https://mandiq-sih-2026.onrender.com/docs)
