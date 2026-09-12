@@ -1,8 +1,10 @@
-fastapi
-uvicorn
+﻿fastapi
+uvicorn[standard]
 sqlalchemy
 asyncpg
+aiosqlite
 python-dotenv
 pydantic
 thefuzz
 python-Levenshtein
+reportlab
