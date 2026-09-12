@@ -18,27 +18,27 @@ export const WebSocketProvider = ({ children }) => {
     let ws = null;
     try {
       const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
-      if (isLocal) {
-        // Connect directly to port 8000 to avoid proxy dropouts
-        const wsUrl = `ws://127.0.0.1:8000/ws/queue`;
-        ws = new WebSocket(wsUrl);
-        ws.onopen = () => console.log("WebSocket connected to MandiQ backend");
-        ws.onmessage = (event) => {
-          try {
-            const message = JSON.parse(event.data);
-            if (message.type === "queue_update" && message.data && message.data.items) {
-              setQueueData(message.data.items);
-              try {
-                localStorage.setItem("mandiq_queue_data", JSON.stringify(message.data.items));
-              } catch (e) {}
-            }
-          } catch (e) {
-            console.error("WS parse error", e);
+      const wsUrl = isLocal 
+        ? "ws://127.0.0.1:8000/ws/queue" 
+        : "wss://mandiq-sih-2026.onrender.com/ws/queue";
+
+      ws = new WebSocket(wsUrl);
+      ws.onopen = () => console.log("WebSocket connected to MandiQ backend:", wsUrl);
+      ws.onmessage = (event) => {
+        try {
+          const message = JSON.parse(event.data);
+          if (message.type === "queue_update" && message.data && message.data.items) {
+            setQueueData(message.data.items);
+            try {
+              localStorage.setItem("mandiq_queue_data", JSON.stringify(message.data.items));
+            } catch (e) {}
           }
-        };
-        ws.onerror = () => console.log("WS fallback to local sync mode");
-        setSocket(ws);
-      }
+        } catch (e) {
+          console.error("WS parse error", e);
+        }
+      };
+      ws.onerror = () => console.log("WS fallback to local sync mode");
+      setSocket(ws);
     } catch (e) {
       console.log("Running in static standalone mode");
     }
