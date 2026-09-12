@@ -63,6 +63,7 @@ const PhoneSimulator = ({ isSplitView = false }) => {
   const [sms, setSms] = useState(null); // { name, token, date, time }
   const [voiceEngine, setVoiceEngine] = useState("sarvam"); // 'sarvam', 'bhashini', or 'browser'
   const [providers, setProviders] = useState(null);
+  const [isProbing, setIsProbing] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [customVoiceInput, setCustomVoiceInput] = useState("");
   const audioPlayerRef = useRef(null);
@@ -72,12 +73,27 @@ const PhoneSimulator = ({ isSplitView = false }) => {
   const [step, setStep] = useState("idle");
   const [screenLines, setScreenLines] = useState(["MandiQ Network", "", "Press CALL to start"]);
 
-  // Check backend voice providers status on mount
-  useEffect(() => {
-    getVoiceProviders().then(data => {
+  const checkProviders = async () => {
+    setIsProbing(true);
+    try {
+      const data = await getVoiceProviders();
       if (data) setProviders(data);
-    });
-  }, []);
+    } catch (e) {}
+    setIsProbing(false);
+  };
+
+  // Check backend voice providers status on mount and periodically probe
+  useEffect(() => {
+    checkProviders();
+    const interval = setInterval(() => {
+      if (!providers?.sarvam?.configured) {
+        getVoiceProviders().then(data => {
+          if (data && data.sarvam?.configured) setProviders(data);
+        });
+      }
+    }, 6000);
+    return () => clearInterval(interval);
+  }, [providers]);
 
   const t = (key, params = {}) => {
     let str = i18n[lang][key] || key;
@@ -347,9 +363,20 @@ const PhoneSimulator = ({ isSplitView = false }) => {
           <div className="form-group" style={{ marginBottom: "1rem" }}>
             <label className="form-label" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <span>Voice AI Engine</span>
-              <span style={{ fontSize: "0.75rem", color: providers?.sarvam?.configured ? "var(--accent-green)" : "#eab308" }}>
-                {providers?.sarvam?.configured ? "🟢 Sarvam Active" : "🟡 Local Mode"}
-              </span>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}>
+                <span style={{ fontSize: "0.75rem", fontWeight: 600, color: providers?.sarvam?.configured ? "var(--accent-green)" : "#eab308" }}>
+                  {providers?.sarvam?.configured ? "🟢 Sarvam Cloud Active" : "🟡 Local Mode (Offline)"}
+                </span>
+                <button 
+                  type="button"
+                  onClick={checkProviders}
+                  disabled={isProbing}
+                  style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "0.85rem", padding: "0 2px" }}
+                  title="Test connection to FastAPI backend (port 8000)"
+                >
+                  {isProbing ? "⏳" : "🔄"}
+                </button>
+              </div>
             </label>
             <select 
               className="form-input" 
@@ -359,8 +386,13 @@ const PhoneSimulator = ({ isSplitView = false }) => {
             >
               <option value="sarvam">Sarvam AI (Bulbul Neural Voice)</option>
               <option value="bhashini">Bhashini (National Indic Voice)</option>
-              <option value="browser">Browser Speech (Offline)</option>
+              <option value="browser">Browser Speech (Offline Fallback)</option>
             </select>
+            {!providers?.sarvam?.configured && (
+              <div style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginTop: "0.35rem", lineHeight: "1.3" }}>
+                Backend not connected. Start terminal: <code style={{ color: "var(--accent-amber)", background: "rgba(0,0,0,0.3)", padding: "1px 4px", borderRadius: "3px" }}>python -m uvicorn app.main:app</code>
+              </div>
+            )}
           </div>
           <div className="form-group" style={{ marginBottom: "1rem" }}>
             <label className="form-label">Language / Bhasha</label>

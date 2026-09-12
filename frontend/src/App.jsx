@@ -4,6 +4,7 @@ import BookingForm from "./components/BookingForm.jsx";
 import PhoneSimulator from "./components/PhoneSimulator.jsx";
 import AnalyticsView from "./components/AnalyticsView.jsx";
 import SmsDrawer from "./components/SmsDrawer.jsx";
+import { resetAndRandomizeAllData } from "./services/dataService.js";
 
 function App() {
   const [view, setView] = useState("dashboard");
@@ -40,7 +41,27 @@ function App() {
             📊 Impact Analytics
           </button>
         </div>
-        <div>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
+          {/* Developer Tool: Reset & Randomize All Data */}
+          <button 
+            className="nav-btn"
+            onClick={async () => {
+              if (window.confirm("⚠️ DEV RESET:\n\nAre you sure you want to reset and randomize all queue data and SMS logs?\n\nThis will generate 100 fresh randomized farmers across all crops.")) {
+                await resetAndRandomizeAllData();
+                alert("✅ Success: All data has been reset and randomized across 100 farmers!");
+              }
+            }}
+            style={{ 
+              background: "rgba(239, 68, 68, 0.12)", color: "#f87171", 
+              border: "1px dashed rgba(239, 68, 68, 0.4)", borderRadius: "var(--radius-sm)",
+              padding: "0.3rem 0.65rem", fontSize: "0.78rem", fontWeight: 600, cursor: "pointer",
+              display: "flex", alignItems: "center", gap: "0.35rem"
+            }}
+            title="Developer tool: Wipes state, randomizes 100 farmers across crops, and resets SMS logs"
+          >
+            🎲 Reset & Randomize (Dev)
+          </button>
+
           <button 
             className="nav-btn"
             style={{ 

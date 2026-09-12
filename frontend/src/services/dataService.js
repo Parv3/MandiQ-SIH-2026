@@ -384,3 +384,79 @@ export const getStatusByPhone = async (phone) => {
     slot_time: found.slot_start ? `${found.slot_start.slice(0, 5)} - ${found.slot_end.slice(0, 5)}` : "10:00 - 10:15"
   };
 };
+
+// ================= Developer Tool: Reset & Randomize All Data =================
+export const resetAndRandomizeAllData = async () => {
+  const crops = ["Wheat", "Paddy", "Mustard", "Sugarcane", "Soybean", "Barley", "Moong", "Sunflower", "Gram"];
+  const firstNames = ["Ramesh", "Suresh", "Mukesh", "Rajesh", "Harpreet", "Gurpreet", "Birju", "Dharmendra", "Santosh", "Mohan", "Sunil", "Brijesh", "Ramakant", "Devendra", "Balram", "Shivaji", "Kishan", "Omveer", "Vikram", "Harendra", "Pankaj", "Amit", "Ajay", "Satpal", "Manjeet"];
+  const lastNames = ["Kumar", "Singh", "Yadav", "Patel", "Sharma", "Choudhary", "Thakur", "Verma", "Lodhi", "Gupta", "Mishra", "Jat", "Gill", "Sandhu"];
+  const villages = ["Rampur", "Fatehpur", "Govindpur", "Kishanpur", "Rajgarh", "Phulera", "Sitapur", "Sundarpur", "Bilaspur", "Sonipat", "Karnal", "Shahpur", "Pipariya", "Dhar", "Vidisha", "Rewa"];
+
+  const randomItems = [];
+  const totalItems = 100;
+  
+  for (let i = 1; i <= totalItems; i++) {
+    const fName = firstNames[Math.floor(Math.random() * firstNames.length)];
+    const lName = lastNames[Math.floor(Math.random() * lastNames.length)];
+    const village = villages[Math.floor(Math.random() * villages.length)];
+    const crop = crops[Math.floor(Math.random() * crops.length)];
+    const phone = `98${Math.floor(10000000 + Math.random() * 90000000)}`;
+    const token = `TKN-20260913-${String(i).padStart(3, "0")}`;
+    
+    // Realistic distribution: ~60% waiting, ~28% served, ~12% halted
+    const rand = Math.random();
+    let status = "waiting";
+    if (rand < 0.28) status = "served";
+    else if (rand < 0.40) status = "halted";
+
+    // Realistic slot times throughout the day
+    const totalMinutes = 9 * 60 + ((i - 1) % 32) * 15;
+    const startH = String(Math.floor(totalMinutes / 60)).padStart(2, "0");
+    const startM = String(totalMinutes % 60).padStart(2, "0");
+    const endMinutes = totalMinutes + 15;
+    const endH = String(Math.floor(endMinutes / 60)).padStart(2, "0");
+    const endM = String(endMinutes % 60).padStart(2, "0");
+
+    randomItems.push({
+      token_number: token,
+      name: `${fName} ${lName}`,
+      phone_number: phone,
+      village,
+      crop,
+      slot_date: status === "halted" ? "2026-09-14" : "2026-09-13",
+      slot_start: `${startH}:${startM}:00`,
+      slot_end: `${endH}:${endM}:00`,
+      status
+    });
+  }
+
+  // Generate matching realistic randomized SMS logs
+  const randomNotifs = [];
+  for (let j = 0; j < 8; j++) {
+    const sample = randomItems[j];
+    const isHalted = sample.status === "halted";
+    const msg = isHalted
+      ? `MandiQ Reschedule: Aapka slot token ${sample.token_number} heavy congestion ke kaaran kal 2026-09-14 ke liye reschedule kiya gaya hai.`
+      : `MandiQ Alert: Namaste ${sample.name}, aapka token ${sample.token_number} (${sample.crop}) safalta purvak book ho gaya hai. Slot Samay: 2026-09-13 ${sample.slot_start.slice(0, 5)} - ${sample.slot_end.slice(0, 5)}. Gate 1 par report karein.`;
+
+    randomNotifs.push({
+      id: Date.now() - j * 120000,
+      farmer_name: sample.name,
+      phone_number: sample.phone_number,
+      message: msg,
+      status: "sent",
+      created_at: new Date(Date.now() - j * 180000).toISOString()
+    });
+  }
+
+  // Clear and update localStorage
+  saveStoredQueue(randomItems);
+  saveStoredNotifications(randomNotifs);
+
+  // Try to notify backend if online
+  try {
+    await fetch("/api/queue/reset", { method: "POST" });
+  } catch (e) {}
+
+  return { success: true, count: randomItems.length };
+};
