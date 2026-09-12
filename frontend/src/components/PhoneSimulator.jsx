@@ -49,7 +49,13 @@ const i18n = {
   }
 };
 
-const PhoneSimulator = () => {
+const DEMO_PERSONAS = [
+  { id: 'ramesh', name: 'Ramesh Singh', phone: '9876511001', crop: 'Wheat', lang: 'hi', emoji: '🧑🏽‍🌾', label: 'Hindi (Wheat)' },
+  { id: 'harpreet', name: 'Harpreet Singh', phone: '9876522002', crop: 'Paddy', lang: 'pa', emoji: '👳🏽‍♂️', label: 'Punjabi (Paddy)' },
+  { id: 'birju', name: 'Birju Yadav', phone: '9876533003', crop: 'Mustard', lang: 'bho', emoji: '👨🏽‍🌾', label: 'Bhojpuri (Mustard)' },
+];
+
+const PhoneSimulator = ({ isSplitView = false }) => {
   // Config
   const [callerName, setCallerName] = useState("Parv");
   const [callerPhone, setCallerPhone] = useState("9876543210");
@@ -284,6 +290,15 @@ const PhoneSimulator = () => {
     }
   };
 
+  const loadPersona = (persona) => {
+    setCallerName(persona.name);
+    setCallerPhone(persona.phone);
+    setLang(persona.lang);
+    setStep("idle");
+    setScreenLines(["MandiQ Network", `Caller: ${persona.name}`, "Press CALL to start"]);
+    stopSpeak();
+  };
+
   const renderKey = (num, letters) => (
     <button className="nokia-key" onClick={() => handleKey(num)}>
       <span className="key-num">{num}</span>
@@ -292,10 +307,38 @@ const PhoneSimulator = () => {
   );
 
   return (
-    <div style={{ display: "flex", gap: "3rem", width: "100%", justifyContent: "center", alignItems: "flex-start", flexWrap: "wrap" }}>
+    <div style={{ display: "flex", gap: "3rem", width: "100%", justifyContent: "center", alignItems: "flex-start", flexWrap: "wrap", flexDirection: isSplitView ? "column" : "row" }}>
       
       {/* Simulation Setup Panel */}
-      <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem", width: "100%", maxWidth: "320px" }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem", width: "100%", maxWidth: isSplitView ? "100%" : "320px" }}>
+        
+        {/* 1-Click Demo Personas */}
+        <div className="card" style={{ margin: 0, padding: "1rem" }}>
+          <h3 style={{ fontSize: "0.9rem", color: "var(--text-muted)", marginBottom: "0.75rem", textTransform: "uppercase", letterSpacing: "1px" }}>1-Click Demo Personas</h3>
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+            {DEMO_PERSONAS.map(p => (
+              <button 
+                key={p.id}
+                onClick={() => loadPersona(p)}
+                style={{
+                  display: "flex", alignItems: "center", justifyContent: "space-between",
+                  padding: "0.6rem 0.8rem", background: "rgba(255,255,255,0.05)",
+                  border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-sm)",
+                  color: "var(--text-primary)", cursor: "pointer", transition: "all 0.2s"
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = "rgba(59,130,246,0.1)"}
+                onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.05)"}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                  <span style={{ fontSize: "1.2rem" }}>{p.emoji}</span>
+                  <span style={{ fontWeight: 600, fontSize: "0.85rem" }}>{p.name}</span>
+                </div>
+                <span style={{ fontSize: "0.75rem", color: "var(--accent-blue)" }}>{p.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div className="card" style={{ margin: 0 }}>
           <div className="card-header">
             <h2 className="card-title">Caller ID Setup</h2>

@@ -387,6 +387,15 @@ async def create_booking(req: schemas.BookingRequest, db: AsyncSession = Depends
         status=models.BookingStatus.WAITING,
     )
     db.add(booking)
+
+    # Generate confirmation SMS notification
+    notif = models.Notification(
+        farmer_id=farmer.id,
+        message=f"MandiQ Alert: Namaste {farmer.name}, aapka token {token} ({farmer.crop or 'Fasal'}) safalta purvak book ho gaya hai. Slot Samay: {slot.date} {slot.start_time.strftime('%H:%M')} - {slot.end_time.strftime('%H:%M')}. Kripya Gate 1 par samay par report karein.",
+        status="sent",
+    )
+    db.add(notif)
+
     await db.commit()
     # Broadcast updated queue to WS clients
     queue_payload = await get_full_queue(db)
@@ -480,3 +489,27 @@ async def simulate_status(phone: str, db: AsyncSession = Depends(get_db)):
         "status": booking.status,
         "slot_time": f"{slot.start_time.strftime('%H:%M')} - {slot.end_time.strftime('%H:%M')}"
     }
+
+@router.get("/notifications")
+async def get_notifications(limit: int = 50, db: AsyncSession = Depends(get_db)):
+    """
+    Get recent SMS notifications for the Live Farmer SMS Dispatch Drawer.
+    """
+    result = await db.execute(
+        select(models.Notification, models.Farmer)
+        .join(models.Farmer, models.Notification.farmer_id == models.Farmer.id)
+        .order_by(models.Notification.created_at.desc())
+        .limit(limit)
+    )
+    rows = result.all()
+    notifications = []
+    for notif, farmer in rows:
+        notifications.append({
+            "id": notif.id,
+            "farmer_name": farmer.name,
+            "phone_number": farmer.phone_number,
+            "message": notif.message,
+            "status": notif.status,
+            "created_at": notif.created_at.isoformat() if notif.created_at else None
+        })
+    return {"notifications": notifications, "total": len(notifications)}
