@@ -1,4 +1,4 @@
-﻿fastapi
+fastapi
 uvicorn[standard]
 sqlalchemy
 asyncpg
@@ -8,3 +8,4 @@ pydantic
 thefuzz
 python-Levenshtein
 reportlab
+httpx

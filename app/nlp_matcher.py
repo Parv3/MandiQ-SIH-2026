@@ -8,12 +8,15 @@ VILLAGES = [
     "Patran", "Sanaur", "Ghagga", "Karnal", "Patiala"
 ]
 
-# Hindi translations mapped to English canonical names for matching
+# Multilingual translations (Hindi, Punjabi & Bhojpuri) mapped to English canonical names for matching
 CROPS = {
-    "Wheat": ["गेहूँ", "gehun", "wheat"],
-    "Rice": ["धान", "चावल", "dhan", "chawal", "rice"],
-    "Sugarcane": ["गन्ना", "ganna", "sugarcane"],
-    "Mustard": ["सरसों", "sarson", "mustard"]
+    "Wheat": ["गेहूँ", "gehun", "gehu", "wheat", "ਕਣਕ", "kanak", "गोहूँ", "gohun", "गेंहू", "genhu"],
+    "Rice": ["धान", "चावल", "dhan", "chawal", "rice", "ਝੋਨਾ", "jhona", "ਚਾਵਲ", "चाउर", "chaur", "चावर", "chawar"],
+    "Sugarcane": ["गन्ना", "ganna", "sugarcane", "ਗੰਨਾ", "ऊख", "ookh", "ईख", "eekh", "उख"],
+    "Mustard": ["सरसों", "sarson", "mustard", "ਸਰ੍ਹੋਂ", "ਸਰੋਂ", "sarhon", "saron", "तोरी", "tori", "राई", "raai", "सरसो", "sarso"],
+    "Cotton": ["कपास", "kapas", "cotton", "ਨਰਮਾ", "narma", "ਕਪਾਹ", "kapah"],
+    "Maize": ["मक्का", "makka", "maize", "corn", "ਮੱਕੀ", "makki", "मकई", "makai", "भुट्टा", "bhutta"],
+    "Gram": ["चना", "chana", "gram", "बूट", "boot"]
 }
 
 # Flatten crop aliases for fuzzy matching

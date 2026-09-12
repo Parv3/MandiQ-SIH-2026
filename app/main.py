@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi import WebSocket, WebSocketDisconnect
 from .websocket_manager import manager as ws_manager
 from .database import engine, Base
-from . import parv_routes
+from . import parv_routes, voice_routes
 from contextlib import asynccontextmanager
 
 @asynccontextmanager
@@ -27,6 +27,7 @@ app.add_middleware(
 
 # Include Parv's routes
 app.include_router(parv_routes.router, tags=["Parv - Backend Support"])
+app.include_router(voice_routes.router, prefix="/api/voice", tags=["Voice & Indic AI (Sarvam & Bhashini)"])
 
 @app.get("/")
 async def root():

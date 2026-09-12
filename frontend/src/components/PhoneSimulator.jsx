@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { createBooking, fetchFarmerStatus } from "../services/api.js";
+import React, { useState, useEffect, useRef } from "react";
+import { createBooking, fetchFarmerStatus, synthesizeSpeech, getVoiceProviders, processFarmerSpeech } from "../services/api.js";
 
 // Dictionary for Hindi and English translations
 const i18n = {
@@ -24,6 +24,28 @@ const i18n = {
     fetchingStatus: "Aapka status check ho raha hai, kripya pratiksha kare.",
     statusResult: "Aapka token number {token} hai, aur aapka status {status} hai.",
     statusNotFound: "Aapke number par koi booking nahi mili.",
+  },
+  pa: {
+    welcome: "Mandi Q vich tuhada swagat hai, {name}. Slot book karan layi 1 dabao. Apna status check karan layi 2 dabao.",
+    selectCrop: "Kripa karke apni fasal chuno. Kanak layi 1, Ganne layi 2, ate Jhone layi 3 dabao.",
+    invalidChoice: "Galat chunav. Kanak layi 1, Ganne layi 2, ya Jhone layi 3 dabao.",
+    confirmed: "Tuhadi booking confirm ho gayi hai. Tuhada token number hai {token}. Asi SMS bhej ditta hai.",
+    failed: "Maaf karna, asi tuhada slot book nahi kar sake. Kripa karke baad vich koshish karo.",
+    alreadyBooked: "Tuhadi booking pehla hi active hai. Status check karan layi 2 dabao.",
+    fetchingStatus: "Tuhada status check ho reha hai, kripa pratiksha karo.",
+    statusResult: "Tuhada token number {token} hai, ate tuhada status {status} hai.",
+    statusNotFound: "Tuhade number te koi booking nahi mili.",
+  },
+  bho: {
+    welcome: "Mandi Q me raua sab ke bahut-bahut swagat ba, {name} ji. Slot book kare khatir 1 dabai. Apan status jaanche khatir 2 dabai.",
+    selectCrop: "Kripa kaike apan fasal chuni. Gohun khatir 1, Eekh chahe Ganna khatir 2, aa Dhan khatir 3 dabai.",
+    invalidChoice: "Galat chunav. Gohun khatir 1, Ganna khatir 2, ya Dhan khatir 3 dabai.",
+    confirmed: "Raua booking pakka ho gail ba. Raua token number {token} ba. Hamni SMS bhej dele bani.",
+    failed: "Maaf kari, raua slot book na ho paawal. Kripa kaike baad me koshish kari.",
+    alreadyBooked: "Raua booking pahile se chalu ba. Status dekhe khatir 2 dabai.",
+    fetchingStatus: "Raua status ke jaanch ho rahal ba, tani dheeraj rakhi.",
+    statusResult: "Raua token number {token} ba, aaur status {status} ba.",
+    statusNotFound: "Raua number par kawno booking naikhe milal.",
   }
 };
 
@@ -31,13 +53,24 @@ const PhoneSimulator = () => {
   // Config
   const [callerName, setCallerName] = useState("Parv");
   const [callerPhone, setCallerPhone] = useState("9876543210");
-  const [lang, setLang] = useState("en"); // 'en' or 'hi'
+  const [lang, setLang] = useState("hi"); // Default to Hindi for authentic IVR
   const [sms, setSms] = useState(null); // { name, token, date, time }
+  const [voiceEngine, setVoiceEngine] = useState("sarvam"); // 'sarvam', 'bhashini', or 'browser'
+  const [providers, setProviders] = useState(null);
+  const [isListening, setIsListening] = useState(false);
+  const audioPlayerRef = useRef(null);
 
   // Phone State
   // steps: idle -> calling -> connected_menu -> crop_selection -> status_fetch
   const [step, setStep] = useState("idle");
   const [screenLines, setScreenLines] = useState(["MandiQ Network", "", "Press CALL to start"]);
+
+  // Check backend voice providers status on mount
+  useEffect(() => {
+    getVoiceProviders().then(data => {
+      if (data) setProviders(data);
+    });
+  }, []);
 
   const t = (key, params = {}) => {
     let str = i18n[lang][key] || key;
@@ -47,22 +80,43 @@ const PhoneSimulator = () => {
     return str;
   };
 
-  const speak = (text, langCode = "en-US", onEnd = null) => {
+  const stopSpeak = () => {
+    if (audioPlayerRef.current) {
+      audioPlayerRef.current.pause();
+      audioPlayerRef.current.currentTime = 0;
+      audioPlayerRef.current = null;
+    }
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
+  };
+
+  const speak = async (text, langCode = "en-US", onEnd = null) => {
+    stopSpeak();
+
+    // 1. Try Sarvam AI or Bhashini if selected
+    if (voiceEngine === "sarvam" || voiceEngine === "bhashini") {
+      try {
+        const langParam = (lang === "hi" || lang === "bho") ? "hi-IN" : (lang === "pa" ? "pa-IN" : "en-IN");
+        const ttsRes = await synthesizeSpeech(text, voiceEngine, langParam);
+        if (ttsRes && ttsRes.success && ttsRes.audio_base64) {
+          const audio = new Audio(`data:audio/wav;base64,${ttsRes.audio_base64}`);
+          audioPlayerRef.current = audio;
+          if (onEnd) audio.onended = onEnd;
+          await audio.play();
+          return;
+        }
+      } catch (err) {
+        console.warn("Neural TTS playback failed, falling back to browser synthesis", err);
+      }
+    }
+
+    // 2. Fallback to Browser SpeechSynthesis
     if (!window.speechSynthesis) return;
-    window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
-    
-    // Choose voice language based on user selection
-    utterance.lang = lang === "hi" ? "hi-IN" : "en-US";
-    
+    utterance.lang = (lang === "hi" || lang === "bho") ? "hi-IN" : (lang === "pa" ? "pa-IN" : "en-US");
     utterance.rate = 0.95;
     utterance.pitch = 1.1;
     if (onEnd) utterance.onend = onEnd;
     window.speechSynthesis.speak(utterance);
-  };
-
-  const stopSpeak = () => {
-    if (window.speechSynthesis) window.speechSynthesis.cancel();
   };
 
   useEffect(() => {
@@ -169,6 +223,47 @@ const PhoneSimulator = () => {
       }
    };
 
+  const handleVoiceBooking = () => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("Speech recognition is not supported in this browser. Please use Chrome/Edge or keypad buttons.");
+      return;
+    }
+
+    stopSpeak();
+    setIsListening(true);
+    setScreenLines(["Listening...", "Speak your crop", "e.g. Gehu, Dhan, Sarson"]);
+    
+    const recognition = new SpeechRecognition();
+    recognition.lang = (lang === "hi" || lang === "bho") ? "hi-IN" : (lang === "pa" ? "pa-IN" : "en-IN");
+    recognition.interimResults = false;
+
+    recognition.onresult = async (event) => {
+      setIsListening(false);
+      const transcript = event.results[0][0].transcript;
+      setScreenLines(["Heard:", `"${transcript}"`, "Processing AI..."]);
+      
+      // Call backend Sarvam/Bhashini NLP processor
+      const targetLang = (lang === "hi" || lang === "bho") ? "hi-IN" : (lang === "pa" ? "pa-IN" : "en-IN");
+      const nlpResult = await processFarmerSpeech(null, transcript, targetLang);
+      if (nlpResult && nlpResult.extracted_crop) {
+        setScreenLines(["AI Detected:", nlpResult.extracted_crop, "Booking slot..."]);
+        submitBooking(nlpResult.extracted_crop);
+      } else {
+        setScreenLines(["Crop not recognized", "Please select key", "1:Wheat 2:Sugar 3:Paddy"]);
+        speak(t("invalidChoice"));
+      }
+    };
+
+    recognition.onerror = (err) => {
+      setIsListening(false);
+      setScreenLines(["Voice Error", "Try keypad instead"]);
+      console.warn("Speech recognition error", err);
+    };
+
+    recognition.start();
+  };
+
   const renderKey = (num, letters) => (
     <button className="nokia-key" onClick={() => handleKey(num)}>
       <span className="key-num">{num}</span>
@@ -187,6 +282,24 @@ const PhoneSimulator = () => {
             <div className="card-subtitle">Set before calling</div>
           </div>
           <div className="form-group" style={{ marginBottom: "1rem" }}>
+            <label className="form-label" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span>Voice AI Engine</span>
+              <span style={{ fontSize: "0.75rem", color: providers?.sarvam?.configured ? "var(--accent-green)" : "#eab308" }}>
+                {providers?.sarvam?.configured ? "🟢 Sarvam Active" : "🟡 Local Mode"}
+              </span>
+            </label>
+            <select 
+              className="form-input" 
+              value={voiceEngine} 
+              onChange={e => setVoiceEngine(e.target.value)}
+              disabled={step !== "idle"}
+            >
+              <option value="sarvam">Sarvam AI (Bulbul Neural Voice)</option>
+              <option value="bhashini">Bhashini (National Indic Voice)</option>
+              <option value="browser">Browser Speech (Offline)</option>
+            </select>
+          </div>
+          <div className="form-group" style={{ marginBottom: "1rem" }}>
             <label className="form-label">Language / Bhasha</label>
             <select 
               className="form-input" 
@@ -194,8 +307,10 @@ const PhoneSimulator = () => {
               onChange={e => setLang(e.target.value)}
               disabled={step !== "idle"}
             >
-              <option value="en">English</option>
               <option value="hi">Hindi (हिंदी)</option>
+              <option value="bho">Bhojpuri (भोजपुरी)</option>
+              <option value="pa">Punjabi (ਪੰਜਾਬੀ)</option>
+              <option value="en">English</option>
             </select>
           </div>
           <div className="form-group" style={{ marginBottom: "1rem" }}>
@@ -223,16 +338,16 @@ const PhoneSimulator = () => {
           <div className="card fade-in" style={{ margin: 0, border: "1px solid var(--accent-green)", boxShadow: "var(--shadow-glow)" }}>
             <div className="card-header" style={{ marginBottom: "0.5rem" }}>
               <h2 className="card-title" style={{ color: "var(--accent-green)", display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <span>💬</span> {lang === 'hi' ? 'Naya SMS' : 'New SMS Received'}
+                <span>💬</span> {lang === 'pa' ? 'ਨਵਾਂ SMS' : (lang === 'bho' ? 'नया SMS (भोजपुरी)' : (lang === 'hi' ? 'Naya SMS' : 'New SMS Received'))}
               </h2>
             </div>
             <div style={{ background: "rgba(0,0,0,0.3)", padding: "1rem", borderRadius: "8px", borderLeft: "3px solid var(--accent-green)", fontSize: "0.9rem", lineHeight: "1.5" }}>
-              {lang === 'hi' ? 'Namaste' : 'Hello'} <strong>{sms.name}</strong>,<br/>
-              {lang === 'hi' ? 'Aapka MandiQ slot book ho gaya hai.' : 'Your MandiQ slot is booked successfully.'}<br/><br/>
+              {lang === 'bho' ? 'Pranam' : (lang === 'pa' ? 'Sat Sri Akal' : (lang === 'hi' ? 'Namaste' : 'Hello'))} <strong>{sms.name}</strong>,<br/>
+              {lang === 'bho' ? 'Raua MandiQ slot book ho gail ba.' : (lang === 'pa' ? 'Tuhada MandiQ slot book ho gaya hai.' : (lang === 'hi' ? 'Aapka MandiQ slot book ho gaya hai.' : 'Your MandiQ slot is booked successfully.'))}<br/><br/>
               <span style={{ color: "var(--text-muted)" }}>Token No:</span> <strong style={{ color: "var(--text-primary)" }}>{sms.token}</strong><br/>
-              <span style={{ color: "var(--text-muted)" }}>{lang === 'hi' ? 'Tarik' : 'Date'}:</span> {sms.date}<br/>
-              <span style={{ color: "var(--text-muted)" }}>{lang === 'hi' ? 'Aane ka Samay' : 'Time to come'}:</span> <strong>{sms.time}</strong><br/><br/>
-              <em>{lang === 'hi' ? 'MandiQ istemal karne ke liye dhanyawad!' : 'Thank you for using MandiQ!'}</em>
+              <span style={{ color: "var(--text-muted)" }}>{lang === 'bho' ? 'Tarikh' : (lang === 'pa' ? 'Miti (Date)' : (lang === 'hi' ? 'Tarik' : 'Date'))}:</span> {sms.date}<br/>
+              <span style={{ color: "var(--text-muted)" }}>{lang === 'bho' ? 'Aawe ke Samay' : (lang === 'pa' ? 'Aun da Samay' : (lang === 'hi' ? 'Aane ka Samay' : 'Time to come'))}:</span> <strong>{sms.time}</strong><br/><br/>
+              <em>{lang === 'bho' ? 'MandiQ istemal kare khatir bahut-bahut dhanyawad!' : (lang === 'pa' ? 'MandiQ vartan layi dhanvaad!' : (lang === 'hi' ? 'MandiQ istemal karne ke liye dhanyawad!' : 'Thank you for using MandiQ!'))}</em>
             </div>
           </div>
         )}
@@ -272,6 +387,31 @@ const PhoneSimulator = () => {
           {renderKey('*', '+')}
           {renderKey('0', '␣')}
           {renderKey('#', '')}
+        </div>
+
+        {/* Voice AI Direct Booking Button */}
+        <div style={{ marginTop: "1rem", textAlign: "center" }}>
+          <button 
+            onClick={handleVoiceBooking}
+            disabled={isListening}
+            style={{
+              background: isListening ? "#ef4444" : "linear-gradient(135deg, #10b981 0%, #059669 100%)",
+              color: "#fff",
+              border: "none",
+              padding: "0.6rem 1.1rem",
+              borderRadius: "20px",
+              cursor: "pointer",
+              fontWeight: "600",
+              fontSize: "0.85rem",
+              boxShadow: isListening ? "0 0 15px rgba(239, 68, 68, 0.6)" : "0 4px 12px rgba(16, 185, 129, 0.3)",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "0.4rem",
+              transition: "all 0.2s ease"
+            }}
+          >
+            <span>{isListening ? "🎙️ Listening..." : "🎙️ Speak to Book (Voice AI)"}</span>
+          </button>
         </div>
       </div>
     </div>
