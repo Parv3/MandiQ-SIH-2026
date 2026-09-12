@@ -6,7 +6,7 @@ const WebSocketContext = createContext(null);
 
 export const WebSocketProvider = ({ children }) => {
   const [socket, setSocket] = useState(null);
-  const [queueData, setQueueData] = useState([]);
+  const [queueData, setQueueData] = useState(() => getStoredQueue() || []);
 
   useEffect(() => {
     // 1. Load initial data (backend or fallback 100 mock items)

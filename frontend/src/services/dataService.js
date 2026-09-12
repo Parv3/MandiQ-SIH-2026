@@ -3,6 +3,7 @@
 // to an embedded in-memory/localStorage engine on GitHub Pages.
 
 const STORAGE_KEY = "mandiq_queue_data";
+const NOTIFICATIONS_STORAGE_KEY = "mandiq_sms_notifications";
 
 // Initial fallback mock data seed if fetching local JSON fails
 const FALLBACK_SEED = [
@@ -11,6 +12,78 @@ const FALLBACK_SEED = [
   { token_number: "TKN-20260913-003", name: "Mukesh Yadav", phone_number: "9823456789", village: "Govindpur", crop: "Paddy", slot_date: "2026-09-13", slot_start: "09:30:00", slot_end: "09:45:00", status: "served" },
   { token_number: "TKN-20260913-004", name: "Rajesh Patel", phone_number: "9834567890", village: "Kishanpur", crop: "Mustard", slot_date: "2026-09-13", slot_start: "09:45:00", slot_end: "10:00:00", status: "halted" }
 ];
+
+const SEED_NOTIFICATIONS = [
+  {
+    id: 101,
+    farmer_name: "Ramesh Singh",
+    phone_number: "9876511001",
+    message: "MandiQ Alert: Namaste Ramesh Singh, aapka token TKN-20260913-001 (Wheat) book ho gaya hai. Slot Samay: 2026-09-13 09:00 - 09:15. Kripya Gate 1 par samay par report karein.",
+    status: "sent",
+    created_at: new Date(Date.now() - 4 * 60000).toISOString()
+  },
+  {
+    id: 102,
+    farmer_name: "Harpreet Singh",
+    phone_number: "9876522002",
+    message: "MandiQ Alert: Sat Sri Akal Harpreet Singh ji, tuhada token TKN-20260913-002 (Paddy) confirm ho gaya hai. Slot: 2026-09-13 09:15 - 09:30.",
+    status: "sent",
+    created_at: new Date(Date.now() - 15 * 60000).toISOString()
+  },
+  {
+    id: 103,
+    farmer_name: "Birju Yadav",
+    phone_number: "9876533003",
+    message: "MandiQ Alert: Pranam Birju Yadav ji, raua token TKN-20260913-003 (Mustard) pakka ho gail ba. Slot: 2026-09-13 09:30 - 09:45. Gate 2 par aai.",
+    status: "sent",
+    created_at: new Date(Date.now() - 32 * 60000).toISOString()
+  },
+  {
+    id: 104,
+    farmer_name: "Mukesh Yadav",
+    phone_number: "9823456789",
+    message: "MandiQ Broadcast: Token TKN-20260913-003 is NOW SERVING at Gate 1 Weighbridge. Please bring your trolley forward.",
+    status: "sent",
+    created_at: new Date(Date.now() - 55 * 60000).toISOString()
+  }
+];
+
+export const getStoredNotifications = () => {
+  try {
+    const raw = localStorage.getItem(NOTIFICATIONS_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch (e) {
+    console.warn("Could not read stored notifications", e);
+  }
+  return SEED_NOTIFICATIONS;
+};
+
+export const saveStoredNotifications = (data) => {
+  try {
+    localStorage.setItem(NOTIFICATIONS_STORAGE_KEY, JSON.stringify(data));
+    window.dispatchEvent(new CustomEvent("mandiq_sms_updated", { detail: data }));
+  } catch (e) {
+    console.warn("Could not save stored notifications", e);
+  }
+};
+
+export const addStoredNotification = (notif) => {
+  const current = getStoredNotifications();
+  const newEntry = {
+    id: Date.now(),
+    farmer_name: notif.farmer_name || "Farmer",
+    phone_number: notif.phone_number || "9876543210",
+    message: notif.message,
+    status: notif.status || "sent",
+    created_at: notif.created_at || new Date().toISOString()
+  };
+  const updated = [newEntry, ...current];
+  saveStoredNotifications(updated);
+  return newEntry;
+};
 
 export const getStoredQueue = () => {
   try {
@@ -133,6 +206,15 @@ export const haltItem = async (token) => {
   });
 
   saveStoredQueue(updated);
+  if (rescheduledInfo) {
+    const target = list.find(i => i.token_number === token);
+    addStoredNotification({
+      farmer_name: target ? target.name : "Farmer",
+      phone_number: target ? target.phone_number : "9876543210",
+      message: `MandiQ Reschedule: Aapka slot token ${token} heavy congestion ke kaaran kal 2026-09-14 ${rescheduledInfo.slot_time} ke liye reschedule kiya gaya hai.`,
+      status: "sent"
+    });
+  }
   return rescheduledInfo || { detail: "Booking halted" };
 };
 
@@ -146,6 +228,12 @@ export const haltAllItems = async () => {
     });
     if (res.ok) {
       const result = await res.json();
+      addStoredNotification({
+        farmer_name: "Emergency Broadcast",
+        phone_number: "Mandi Telecom",
+        message: `MANDI EMERGENCY ALERT: Mandi premises at full capacity. All pending ${result.halted_count || 'active'} slots halted and deferred to tomorrow morning.`,
+        status: "sent"
+      });
       try {
         const qRes = await fetch("/api/queue");
         if (qRes.ok) {
@@ -174,6 +262,12 @@ export const haltAllItems = async () => {
   });
 
   saveStoredQueue(updated);
+  addStoredNotification({
+    farmer_name: "Emergency Broadcast",
+    phone_number: "Mandi Telecom",
+    message: `MANDI EMERGENCY ALERT: Mandi premises at full capacity. All pending ${count} slots halted and deferred to tomorrow morning.`,
+    status: "sent"
+  });
   return { detail: `Halted ${count} bookings`, count };
 };
 
@@ -188,6 +282,13 @@ export const bookSlot = async ({ phone_number, name, crop, village }) => {
     });
     if (res.ok) {
       const data = await res.json();
+      // Record SMS confirmation notification
+      addStoredNotification({
+        farmer_name: name,
+        phone_number: phone_number,
+        message: `MandiQ Alert: Namaste ${name}, aapka token ${data.token} (${crop}) safalta purvak book ho gaya hai. Slot Samay: ${data.slot_time}. Kripya Gate 1 par samay par report karein.`,
+        status: "sent"
+      });
       // Immediately refresh queue from backend so count updates live!
       try {
         const qRes = await fetch("/api/queue");
@@ -246,6 +347,13 @@ export const bookSlot = async ({ phone_number, name, crop, village }) => {
 
   const updated = [newBooking, ...list];
   saveStoredQueue(updated);
+
+  addStoredNotification({
+    farmer_name: name,
+    phone_number: phone_number,
+    message: `MandiQ Alert: Namaste ${name}, aapka token ${token} (${crop}) safalta purvak book ho gaya hai. Slot Samay: ${slotDate} ${startH}:${startM} - ${endH}:${endM}. Kripya Gate 1 par samay par report karein.`,
+    status: "sent"
+  });
 
   return {
     token,

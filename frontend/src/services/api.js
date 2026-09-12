@@ -71,16 +71,31 @@ export const processFarmerSpeech = async (audioBase64 = null, transcript = null,
 };
 
 // ================= Notifications =================
+import { getStoredNotifications, addStoredNotification } from "./dataService.js";
 
 export const getNotifications = async (limit = 50) => {
   try {
     const res = await fetch(`/api/notifications?limit=${limit}`);
     if (res.ok) {
-      return await res.json();
+      const data = await res.json();
+      if (data && data.notifications && data.notifications.length > 0) {
+        return data;
+      }
     }
   } catch (e) {
-    console.warn("Failed to fetch notifications", e);
+    console.warn("Backend notifications unreachable, using local store", e);
   }
-  return null;
+  const localList = getStoredNotifications();
+  return { notifications: localList.slice(0, limit), total: localList.length };
+};
+
+export const sendTestSms = (farmerName = "Demo Farmer", phone = "9876599999", crop = "Wheat") => {
+  const token = `TKN-TEST-${Math.floor(100 + Math.random() * 900)}`;
+  return addStoredNotification({
+    farmer_name: farmerName,
+    phone_number: phone,
+    message: `MandiQ Live Test: Namaste ${farmerName}, aapka token ${token} (${crop}) book ho gaya hai. SMS Gateway status: Active.`,
+    status: "sent"
+  });
 };
 
