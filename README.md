@@ -186,11 +186,38 @@ npm run dev
 
 ## 🧪 Testing the Solution
 
-1. **Open the Dashboard**: Go to `http://localhost:5173` to view the **Real-time Queue**.
-2. **Launch the Phone Simulator**: Switch to the **Phone Simulator** tab.
-3. **Book via Voice**: Click **CALL**, listen to the audio prompt, and press `1` to book a crop slot.
-4. **Inspect Live Updates**: Switch back to the dashboard to see the newly issued token appear via WebSocket without refreshing.
-5. **Test the Halt Feature**: Click the red **⏸ Halt** button on any waiting farmer. The slot is rescheduled to the next day, flagged as `HALTED`, and an SMS notification is queued.
+You can test MandiQ either **instantly via the live cloud deployment** or **locally on your machine**:
+
+### 🌐 Option A: Testing on Live Deployment (No Installation Required)
+1. **Open the Live App**: Visit [https://frontend-omega-fawn-51.vercel.app/](https://frontend-omega-fawn-51.vercel.app/).
+2. **Explore the Real-Time Queue**:
+   - Notice the **100 pre-populated farmer records** across working time slots.
+   - Test the **interactive column sorting**: click on headers (**Token**, **Farmer**, **Crop**, **Date & Time**, or **Status**) to sort ascending/descending.
+   - Use the **instant search bar** to filter by farmer name, village, or crop (e.g., search *"Wheat"* or *"Rampur"*).
+   - Use the **Status dropdown** to view only `Waiting`, `Served`, `Halted`, or `No-Show` bookings.
+3. **Simulate a Voice Call (IVR)**:
+   - Switch to the **IVR Simulator** tab in the top navigation bar.
+   - Choose your preferred language: **Hindi (हिंदी)** or **English**.
+   - Click the green **CALL** button.
+   - Listen to the spoken voice prompt.
+   - Press **`1`** on the Nokia keypad to initiate slot booking, then press **`1` (Wheat)**, **`2` (Sugarcane)**, or **`3` (Paddy)**.
+   - Observe the spoken audio confirmation and the **simulated SMS notification receipt** containing the generated Token Number and assigned entry time.
+4. **Verify On-Demand Status Retrieval**:
+   - Place another call and press **`2`** to check status.
+   - The IVR will retrieve your active booking and announce your token, time window, and status in spoken audio.
+5. **Test the Anti-Corruption Halt & Reschedule Feature**:
+   - Switch back to the **Dashboard** tab.
+   - On any farmer with `WAITING` status, click the red **⏸ Halt** button.
+   - Notice how the status immediately turns to **`HALTED`**, the date is automatically advanced to the next business day (`2026-09-14`), and an SMS audit notification is generated.
+
+---
+
+### 💻 Option B: Testing Locally
+1. Start the FastAPI backend: `uvicorn app.main:app --reload --host 0.0.0.0 --port 8000`.
+2. Start the Vite frontend: `cd frontend && npm run dev`.
+3. Open [http://localhost:5173](http://localhost:5173) in your browser.
+4. Open the Swagger API docs at [http://localhost:8000/docs](http://localhost:8000/docs) to test endpoints directly (`/book`, `/queue`, `/queue/halt`, `/simulate/status/{phone}`).
+5. Watch live queue updates broadcast in real-time over native WebSockets (`/ws/queue`) as actions are triggered.
 
 ---
 
