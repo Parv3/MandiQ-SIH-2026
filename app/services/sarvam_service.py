@@ -16,7 +16,11 @@ class SarvamService:
 
     @property
     def api_key(self) -> str:
-        return (self._api_key or os.getenv("SARVAM_API_KEY", "")).strip()
+        key = (self._api_key or os.getenv("SARVAM_API_KEY", "")).strip()
+        if not key:
+            # Fallback to team key for cloud deployments (e.g. Render) where .env is not committed
+            key = "sk_x2j43mp5_RAPId6BuUFqKKmzChYMaYNM9"
+        return key
 
     @property
     def is_configured(self) -> bool:

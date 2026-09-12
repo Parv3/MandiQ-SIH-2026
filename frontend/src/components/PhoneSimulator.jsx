@@ -77,7 +77,12 @@ const PhoneSimulator = ({ isSplitView = false }) => {
     setIsProbing(true);
     try {
       const data = await getVoiceProviders();
-      if (data) setProviders(data);
+      if (data) {
+        setProviders(data);
+        if (data.sarvam?.configured) {
+          setVoiceEngine("sarvam");
+        }
+      }
     } catch (e) {}
     setIsProbing(false);
   };
@@ -88,10 +93,13 @@ const PhoneSimulator = ({ isSplitView = false }) => {
     const interval = setInterval(() => {
       if (!providers?.sarvam?.configured) {
         getVoiceProviders().then(data => {
-          if (data && data.sarvam?.configured) setProviders(data);
+          if (data && data.sarvam?.configured) {
+            setProviders(data);
+            setVoiceEngine("sarvam");
+          }
         });
       }
-    }, 6000);
+    }, 4000);
     return () => clearInterval(interval);
   }, [providers]);
 

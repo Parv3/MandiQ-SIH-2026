@@ -26,11 +26,11 @@ class BhashiniService:
 
     @property
     def user_id(self) -> str:
-        return (self._user_id or os.getenv("BHASHINI_USER_ID", "")).strip()
+        return (self._user_id or os.getenv("BHASHINI_USER_ID", "")).strip() or "abhishek.goswami_cs.aiml25@gla.ac.in"
 
     @property
     def api_key(self) -> str:
-        return (self._api_key or os.getenv("BHASHINI_API_KEY", "")).strip()
+        return (self._api_key or os.getenv("BHASHINI_API_KEY", "")).strip() or "0869b29edc-2fb4-44d2-851a-4f073abaecac"
 
     @property
     def is_configured(self) -> bool:

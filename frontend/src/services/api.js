@@ -27,9 +27,10 @@ export const fetchFarmerStatus = async (phone) => {
 
 // ---------------- Voice & Indic AI (Sarvam & Bhashini) ----------------
 const CANDIDATE_HOSTS = [
-  "",                          // 1. Relative path (Vite proxy)
-  "http://127.0.0.1:8000",     // 2. Direct IPv4 local backend
-  "http://localhost:8000"      // 3. Localhost fallback
+  "",                                     // 1. Relative path (Vite proxy)
+  "http://127.0.0.1:8000",                // 2. Direct IPv4 local backend
+  "http://localhost:8000",                // 3. Localhost fallback
+  "https://mandiq-sih-2026.onrender.com"  // 4. Live Render Cloud backend
 ];
 
 let workingVoiceHost = null;
