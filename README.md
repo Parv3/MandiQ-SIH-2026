@@ -1,4 +1,4 @@
-﻿# 🌾 MandiQ - Voice-First Smart Mandi Queue & Procurement Management System
+# 🌾 MandiQ - Voice-First Smart Mandi Queue & Procurement Management System
 > **Smart India Hackathon (SIH 2026)** | **Team RootCause** | **Track:** Agriculture, FoodTech & Rural Development
 
 ---
@@ -8,6 +8,13 @@
 - **Hackathon:** Smart India Hackathon 2026
 - **Project:** MandiQ — Voice-First Automated Mandi Queue & Procurement Integrity System
 - **Mission:** Bridging the digital divide for illiterate farmers to eliminate corruption, bribery, and middleman exploitation at agricultural mandis.
+
+---
+
+## 🌐 Live Deployment Links
+- 🖥️ **Live Web Application (Vercel):** [https://frontend-omega-fawn-51.vercel.app/](https://frontend-omega-fawn-51.vercel.app/)
+- 🚀 **Live API & WebSocket Backend (Render):** [https://mandiq-sih-2026.onrender.com/](https://mandiq-sih-2026.onrender.com/)
+- 📖 **Interactive API Documentation (Swagger):** [https://mandiq-sih-2026.onrender.com/docs](https://mandiq-sih-2026.onrender.com/docs)
 
 ---
 
