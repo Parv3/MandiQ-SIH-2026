@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { createBooking } from "../services/api.js";
-import axios from "axios";
+import { createBooking, fetchFarmerStatus } from "../services/api.js";
 
 // Dictionary for Hindi and English translations
 const i18n = {
@@ -153,8 +152,7 @@ const PhoneSimulator = () => {
 
    const fetchStatus = async () => {
       try {
-         const res = await axios.get(`/api/simulate/status/${callerPhone}`);
-         const data = res.data;
+         const data = await fetchFarmerStatus(callerPhone);
          // Show token, slot time, status and phone in the UI
          setScreenLines([
            `TKN: ${data.token}`,

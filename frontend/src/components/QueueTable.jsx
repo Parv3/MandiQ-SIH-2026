@@ -1,6 +1,6 @@
-﻿import React, { useState, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import { useWebSocket } from "../services/websocket.jsx";
-import axios from "axios";
+import { updateQueueStatus, haltQueueBooking } from "../services/api.js";
 
 const QueueTable = () => {
   const { queueData, setQueueData } = useWebSocket();
@@ -20,7 +20,11 @@ const QueueTable = () => {
 
   const updateStatus = async (token, newStatus) => {
     try {
-      await axios.post("/api/queue/update", { token_number: token, status: newStatus });
+      await updateQueueStatus(token, newStatus);
+      // Immediately reflect in state
+      setQueueData((prev) =>
+        prev.map((item) => (item.token_number === token ? { ...item, status: newStatus } : item))
+      );
     } catch (err) {
       console.error("Failed to update status", err);
       alert("Failed to update status.");
@@ -29,7 +33,14 @@ const QueueTable = () => {
 
   const haltBooking = async (token) => {
     try {
-      await axios.post("/api/queue/halt", { token_number: token });
+      await haltQueueBooking(token);
+      setQueueData((prev) =>
+        prev.map((item) =>
+          item.token_number === token
+            ? { ...item, status: "halted", slot_date: "2026-09-14" }
+            : item
+        )
+      );
     } catch (err) {
       console.error("Failed to halt booking", err);
       alert("Failed to halt booking.");
