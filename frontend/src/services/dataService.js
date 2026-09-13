@@ -108,12 +108,18 @@ export const saveStoredQueue = (data) => {
 };
 
 export const initQueueData = async () => {
-  // 1. Attempt to fetch freshest live queue from backend first
+  // 1. Check existing localStorage first to preserve loaded/randomized data
+  const existing = getStoredQueue();
+  if (existing && existing.length >= 20) {
+    return existing;
+  }
+
+  // 2. Attempt to fetch freshest live queue from backend if it has full dataset
   try {
     const res = await fetch("/api/queue");
     if (res.ok) {
       const data = await res.json();
-      if (data && data.items && data.items.length > 0) {
+      if (data && data.items && data.items.length >= 20) {
         saveStoredQueue(data.items);
         return data.items;
       }
@@ -122,8 +128,6 @@ export const initQueueData = async () => {
     // Expected when running offline
   }
 
-  // 2. Check localStorage next
-  const existing = getStoredQueue();
   if (existing && existing.length > 0) {
     return existing;
   }
@@ -238,7 +242,19 @@ export const haltAllItems = async () => {
         const qRes = await fetch("/api/queue");
         if (qRes.ok) {
           const qData = await qRes.json();
-          if (qData && qData.items) saveStoredQueue(qData.items);
+          if (qData && qData.items) {
+            const existing = getStoredQueue() || [];
+            if (qData.items.length >= existing.length || existing.length <= 1) {
+              saveStoredQueue(qData.items);
+            } else {
+              const map = new Map();
+              qData.items.forEach(item => map.set(item.token_number, item));
+              existing.forEach(item => {
+                if (!map.has(item.token_number)) map.set(item.token_number, item);
+              });
+              saveStoredQueue(Array.from(map.values()));
+            }
+          }
         }
       } catch (e) {}
       return result;
@@ -295,7 +311,18 @@ export const bookSlot = async ({ phone_number, name, crop, village }) => {
         if (qRes.ok) {
           const qData = await qRes.json();
           if (qData && qData.items) {
-            saveStoredQueue(qData.items);
+            const existing = getStoredQueue() || [];
+            if (qData.items.length >= existing.length || existing.length <= 1) {
+              saveStoredQueue(qData.items);
+            } else {
+              // Intelligent Merge: preserve existing 100 records while adding the new record
+              const map = new Map();
+              qData.items.forEach(item => map.set(item.token_number, item));
+              existing.forEach(item => {
+                if (!map.has(item.token_number)) map.set(item.token_number, item);
+              });
+              saveStoredQueue(Array.from(map.values()));
+            }
           }
         }
       } catch (e) {}

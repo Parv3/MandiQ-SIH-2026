@@ -266,6 +266,15 @@ async def halt_all_bookings(db: AsyncSession = Depends(get_db)):
         "new_date": str(next_day)
     }
 
+@router.post("/queue/reset")
+async def reset_queue_endpoint(db: AsyncSession = Depends(get_db)):
+    """Reset and re-seed 100 fresh randomized customers and broadcast to WS."""
+    from .auto_seed import auto_seed_database
+    await auto_seed_database(db, count=100, wipe_first=True)
+    queue_payload = await get_full_queue(db)
+    await ws_manager.broadcast({"type": "queue_update", "data": jsonable_encoder(queue_payload)})
+    return {"message": "Queue successfully reset and seeded with 100 customers", "total": len(queue_payload.items)}
+
 @router.post("/queue/reschedule")
 async def reschedule_booking(req: schemas.QueueUpdateReq, db: AsyncSession = Depends(get_db)):
     """Reschedule a booking to the next day with same time slot length.

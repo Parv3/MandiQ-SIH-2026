@@ -28,10 +28,24 @@ export const WebSocketProvider = ({ children }) => {
         try {
           const message = JSON.parse(event.data);
           if (message.type === "queue_update" && message.data && message.data.items) {
-            setQueueData(message.data.items);
-            try {
-              localStorage.setItem("mandiq_queue_data", JSON.stringify(message.data.items));
-            } catch (e) {}
+            const incoming = message.data.items;
+            setQueueData(prev => {
+              const current = (prev && prev.length > 0) ? prev : (getStoredQueue() || []);
+              let nextData = incoming;
+              if (incoming.length < current.length && current.length > 1) {
+                // Intelligent Merge: keep existing mock records while prepending/updating live incoming records
+                const map = new Map();
+                incoming.forEach(i => map.set(i.token_number, i));
+                current.forEach(i => {
+                  if (!map.has(i.token_number)) map.set(i.token_number, i);
+                });
+                nextData = Array.from(map.values());
+              }
+              try {
+                localStorage.setItem("mandiq_queue_data", JSON.stringify(nextData));
+              } catch (e) {}
+              return nextData;
+            });
           }
         } catch (e) {
           console.error("WS parse error", e);

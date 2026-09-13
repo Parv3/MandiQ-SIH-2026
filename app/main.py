@@ -2,16 +2,19 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import WebSocket, WebSocketDisconnect
 from .websocket_manager import manager as ws_manager
-from .database import engine, Base
+from .database import engine, Base, AsyncSessionLocal
+from .auto_seed import auto_seed_database
 from . import parv_routes, voice_routes
 from contextlib import asynccontextmanager
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Initialize the database tables on startup for the hackathon
-    # In production, you would use Alembic migrations instead
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+    # Auto-seed 100 realistic customers if database is fresh
+    async with AsyncSessionLocal() as session:
+        await auto_seed_database(session, count=100)
     yield
 
 app = FastAPI(title="MandiQ Backend", lifespan=lifespan)
