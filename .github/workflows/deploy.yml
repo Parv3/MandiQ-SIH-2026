@@ -1,8 +1,11 @@
-﻿name: Deploy MandiQ to GitHub Pages
+name: Deploy MandiQ to GitHub Pages
 
 on:
   push:
     branches: [ main ]
+    paths-ignore:
+      - '.github/activity.txt'
+      - '.github/workflows/auto-commit.yml'
   workflow_dispatch:
 
 permissions:

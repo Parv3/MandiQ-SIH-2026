@@ -1,0 +1,2 @@
+﻿# MandiQ Telemetry & Activity Log
+# Managed automatically via GitHub Actions

@@ -1,0 +1,73 @@
+name: Daily Auto Commit
+
+on:
+  schedule:
+    # Runs everyday at 04:30 UTC (~10:00 AM IST)
+    - cron: '30 4 * * *'
+  workflow_dispatch:
+    inputs:
+      commit_count:
+        description: 'Number of commits to make (leave blank for random 5-15)'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+jobs:
+  daily-commits:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Git author
+        run: |
+          git config --global user.name "Parv Mishra"
+          git config --global user.email "90614865+Parv3@users.noreply.github.com"
+
+      - name: Create Daily Commits
+        run: |
+          if [ -n "${{ github.event.inputs.commit_count }}" ]; then
+            COUNT=${{ github.event.inputs.commit_count }}
+          else
+            # Random number between 5 and 15 inclusive: 5 + (0..10)
+            COUNT=$(( 5 + RANDOM % 11 ))
+          fi
+
+          echo "Generating $COUNT commits today..."
+
+          MESSAGES=(
+            "chore: sync system telemetry data"
+            "docs: update activity log timestamp"
+            "refactor: periodic maintenance heartbeat"
+            "perf: optimize system routine telemetry"
+            "chore: bump telemetry sequence"
+            "ci: record pipeline maintenance status"
+            "test: log scheduled system verification"
+            "style: update telemetry audit log formatting"
+            "build: internal dependency maintenance check"
+            "chore: system health telemetry update"
+          )
+
+          mkdir -p .github
+          LOG_FILE=".github/activity.txt"
+
+          for i in $(seq 1 $COUNT); do
+            TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
+            HEX=$(openssl rand -hex 4)
+            MSG=${MESSAGES[$(( RANDOM % ${#MESSAGES[@]} ))]}
+
+            echo "[$TIMESTAMP] Commit $i/$COUNT - telemetry id: $HEX" >> "$LOG_FILE"
+            git add "$LOG_FILE"
+            git commit -m "$MSG [skip ci]"
+            sleep 2
+          done
+
+      - name: Push Commits
+        run: |
+          git pull --rebase origin main
+          git push origin main
